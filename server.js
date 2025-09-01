@@ -32,7 +32,6 @@ function saveBans() {
   fs.writeFileSync("bans.json", JSON.stringify([...bannedIPs], null, 2));
 }
 
-// --- Constants ---
 const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
 
 // --- Middleware: Ban check ---
@@ -54,7 +53,6 @@ app.post("/signup", (req, res) => {
   }
 
   const role = username === "ratman4090" ? "owner" : "member";
-
   users[username] = { password, role };
   saveUsers();
 
@@ -85,7 +83,7 @@ app.post("/ban", (req, res) => {
   res.sendStatus(200);
 });
 
-// --- Messages ---
+// --- Message route ---
 app.post("/message", async (req, res) => {
   const { username, text, domain, role } = req.body;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -94,7 +92,7 @@ app.post("/message", async (req, res) => {
     return res.status(403).send("Banned");
   }
 
-  // send to Discord
+  // send to Discord webhook
   if (WEBHOOK_URL) {
     await fetch(WEBHOOK_URL, {
       method: "POST",
@@ -106,14 +104,48 @@ app.post("/message", async (req, res) => {
     });
   }
 
-  // broadcast to clients
+  // broadcast via WebSocket
   const payload = JSON.stringify({ username, role, text, ts: Date.now() });
   wss.clients.forEach((client) => {
-    if (client.readyState === 1) client.send(payload);
+    if (client.readyState === 1) {
+      client.send(payload);
+    }
   });
 
   res.sendStatus(200);
 });
 
-// --- Start ---
-server.listen(3000, () => console.log("Server running on http://localhost:3000"));
+// --- WebSocket connections ---
+wss.on("connection", (ws) => {
+  ws.on("message", (msg) => {
+    try {
+      const data = JSON.parse(msg);
+
+      if (data.type === "join") {
+        const joinMsg = JSON.stringify({
+          system: true,
+          text: `${data.username} joined the chat`,
+          ts: Date.now(),
+        });
+        wss.clients.forEach((client) => {
+          if (client.readyState === 1) client.send(joinMsg);
+        });
+      }
+    } catch (e) {
+      console.error("Invalid WS message:", e);
+    }
+  });
+
+  ws.on("close", () => {
+    const leaveMsg = JSON.stringify({
+      system: true,
+      text: "A user left the chat",
+      ts: Date.now(),
+    });
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1) client.send(leaveMsg);
+    });
+  });
+});
+
+server.listen(3000, () => console.log("oh mah gah im deadass working?!? oh yeah the port is 3000 btw"));

@@ -8,12 +8,20 @@ const form = document.getElementById("chatForm");
 const input = document.getElementById("message");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// WebSocket connect
 const ws = new WebSocket(`ws://${window.location.host}`);
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({ type: "join", username: user.username }));
+};
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  addMessage(msg.username, msg.role, msg.text);
+
+  if (msg.system) {
+    addSystemMessage(msg.text);
+  } else {
+    addMessage(msg.username, msg.role, msg.text);
+  }
 };
 
 function addMessage(username, role, text) {
@@ -21,6 +29,16 @@ function addMessage(username, role, text) {
   div.classList.add("message");
   if (role === "owner") div.classList.add("owner");
   div.textContent = `${username}${role === "owner" ? " | owner" : ""}: ${text}`;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function addSystemMessage(text) {
+  const div = document.createElement("div");
+  div.classList.add("message");
+  div.style.fontStyle = "italic";
+  div.style.color = "#666";
+  div.textContent = text;
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }

@@ -1,134 +1,105 @@
-import express from "express";
-import fetch from "node-fetch";
-import { WebSocketServer } from "ws";
-import http from "http";
-import fs from "fs";
-import dotenv from "dotenv";
+import express from "express"
+import http from "http"
+import { Server } from "socket.io"
+import session from "express-session"
+import dotenv from "dotenv"
+import fetch from "node-fetch"
+import path from "path"
+import { fileURLToPath } from "url"
 
-dotenv.config();
+dotenv.config()
 
-const app = express();
-app.use(express.json());
-app.use(express.static("public"));
+const app = express()
+const server = http.createServer(app)
+const io = new Server(server)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(session({
+  secret: "supersecret",
+  resave: false,
+  saveUninitialized: false
+}))
+app.use(express.static(path.join(__dirname, "public")))
 
-// --- Storage ---
-let users = {};
-let bannedIPs = new Set();
+const users = {}
+const bannedIPs = new Set()
+const WEBHOOK_URL = process.env.DISCORD_WEBHOOK
 
-if (fs.existsSync("users.json")) {
-  users = JSON.parse(fs.readFileSync("users.json"));
-}
-if (fs.existsSync("bans.json")) {
-  bannedIPs = new Set(JSON.parse(fs.readFileSync("bans.json")));
-}
-
-function saveUsers() {
-  fs.writeFileSync("users.json", JSON.stringify(users, null, 2));
-}
-function saveBans() {
-  fs.writeFileSync("bans.json", JSON.stringify([...bannedIPs], null, 2));
-}
-
-// --- Constants ---
-const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
-
-// --- Helpers ---
-async function sendToDiscord(username, domain, role, text) {
-  if (!WEBHOOK_URL) return;
-  try {
-    await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: `${username} | ${domain}${role ? " | " + role : ""}`,
-        content: text || "(no message)"
-      }),
-    });
-  } catch (err) {
-    console.error("Failed to send Discord webhook:", err);
-  }
-}
-
-// --- Middleware: Ban check ---
 app.use((req, res, next) => {
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  if (bannedIPs.has(ip)) {
-    return res.sendFile(process.cwd() + "/public/ban.html");
-  }
-  next();
-});
+  if (bannedIPs.has(req.ip)) return res.redirect("/ban.html")
+  next()
+})
 
-// --- Signup ---
 app.post("/signup", (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).send("Missing fields");
+  const { username, password } = req.body
+  if (users[username]) return res.status(400).send("User exists")
+  users[username] = { password }
+  req.session.user = username
+  res.sendStatus(200)
+})
 
-  if (users[username]) {
-    return res.status(400).send("User already exists");
-  }
-
-  const role = username === "ratman4090" ? "owner" : "member";
-
-  users[username] = { password, role };
-  saveUsers();
-
-  res.json({ username, role });
-});
-
-// --- Login ---
 app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-  const user = users[username];
+  const { username, password } = req.body
+  if (!users[username] || users[username].password !== password) return res.status(400).send("Invalid")
+  req.session.user = username
+  res.sendStatus(200)
+})
 
-  if (!user) return res.status(404).send("User not found");
-  if (user.password !== password) return res.status(403).send("Invalid password");
+app.post("/logout", (req, res) => {
+  req.session.destroy(() => res.sendStatus(200))
+})
 
-  res.json({ username, role: user.role });
-});
+io.use((socket, next) => {
+  const req = socket.request
+  const res = req.res
+  session({
+    secret: "supersecret",
+    resave: false,
+    saveUninitialized: false
+  })(req, res, next)
+})
 
-// --- Ban ---
-app.post("/ban", (req, res) => {
-  const { targetIP, username } = req.body;
-  if (username !== "ratman4090") {
-    return res.status(403).send("Only owner can ban");
-  }
+io.on("connection", socket => {
+  const username = socket.request.session.user
+  if (!username) return socket.disconnect(true)
 
-  bannedIPs.add(targetIP);
-  saveBans();
+  socket.on("chatMessage", async msg => {
+    if (bannedIPs.has(socket.handshake.address)) {
+      socket.emit("chatMessage", { username: "System", message: "You are banned." })
+      return
+    }
+    if (username === "ratman4090" && msg.startsWith("/ban ")) {
+      const target = msg.split(" ")[1]
+      for (const [id, s] of io.sockets.sockets) {
+        if (s.request.session.user === target) {
+          bannedIPs.add(s.handshake.address)
+          s.disconnect(true)
+        }
+      }
+      io.emit("chatMessage", { username: "System", message: `${target} has been banned.` })
+      return
+    }
+    const payload = { username, message: msg }
+    io.emit("chatMessage", payload)
+    if (WEBHOOK_URL) {
+      try {
+        await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: `${username} | chat${username === "ratman4090" ? " | owner" : ""}`,
+            content: msg
+          })
+        })
+      } catch (e) {
+        console.error("Webhook failed", e)
+      }
+    }
+  })
+})
 
-  res.sendStatus(200);
-});
-
-// --- Messages ---
-app.post("/message", async (req, res) => {
-  const { username, text, domain, role } = req.body;
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-  if (bannedIPs.has(ip)) {
-    return res.status(403).send("Banned");
-  }
-
-  // send to Discord
-  await sendToDiscord(username, domain, role, text);
-
-  // broadcast to clients
-  const payload = JSON.stringify({ username, role, text, ts: Date.now() });
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) client.send(payload);
-  });
-
-  res.sendStatus(200);
-});
-
-// --- WebSocket Connections ---
-wss.on("connection", (ws) => {
-  ws.on("message", (msg) => {
-    console.log("WS message:", msg.toString());
-  });
-});
-
-// --- Start ---
-server.listen(3000, () => console.log("✅ Server running on http://localhost:3000"));
+const PORT = process.env.PORT || 3000
+server.listen(PORT, () => console.log("Server running on " + PORT))

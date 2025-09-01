@@ -3,24 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Global Chat</title>
+  <title>Chat</title>
   <link rel="stylesheet" href="chat.css">
 </head>
 <body>
   <div class="chat-container">
-    <header>
-      <h1>ratchat v2.1.0</h1>
-      <button id="logoutBtn">Logout</button>
-    </header>
-
-    <div id="messages" class="messages"></div>
-
-    <form id="chatForm" class="chat-form">
-      <input id="message" type="text" placeholder="Type a message..." autocomplete="off">
+    <div id="messages"></div>
+    <form id="chatForm">
+      <input type="text" id="message" placeholder="Type a message" required>
       <button type="submit">Send</button>
     </form>
+    <button id="logoutBtn">Logout</button>
   </div>
-
   <script src="chat.js"></script>
 </body>
 </html>

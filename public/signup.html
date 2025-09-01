@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign Up</title>
   <link rel="stylesheet" href="chat.css">
 </head>
 <body>
-  <div class="form-container">
-    <h1>Sign Up</h1>
+  <div class="container">
+    <h2>Sign Up</h2>
     <form id="signupForm">
       <input type="text" id="username" placeholder="Username" required>
       <input type="password" id="password" placeholder="Password" required>
@@ -15,27 +16,6 @@
     </form>
     <p>Already have an account? <a href="login.html">Login</a></p>
   </div>
-
-  <script>
-    document.getElementById("signupForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      const res = await fetch("/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("user", JSON.stringify(data));
-        window.location.href = "chat.html";
-      } else {
-        alert(await res.text());
-      }
-    });
-  </script>
+  <script src="signup.js"></script>
 </body>
 </html>

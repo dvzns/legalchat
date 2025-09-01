@@ -1,6 +1,6 @@
 import express from "express"
 import http from "http"
-import { Server } from "./public/socket.io/dist"
+import { Server } from "socket.io"
 import session from "express-session"
 import dotenv from "dotenv"
 import fetch from "node-fetch"
@@ -94,9 +94,7 @@ io.on("connection", socket => {
             content: msg
           })
         })
-      } catch (e) {
-        console.error("Webhook failed", e)
-      }
+      } catch (e) {}
     }
   })
 })

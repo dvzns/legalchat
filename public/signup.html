@@ -1,42 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign Up</title>
-  <style>
-    body{display:flex;justify-content:center;align-items:center;height:100vh;background:#0f1724;color:#fff;font-family:Arial}
-    .box{background:#0b1220;padding:40px;border-radius:12px;width:300px}
-    label{display:block;margin:10px 0 4px}
-    input[type=text],input[type=password]{width:100%;padding:10px;border-radius:8px;border:none;margin-bottom:10px}
-    .redact{display:flex;align-items:center;gap:6px}
-    button{width:100%;padding:12px;margin-top:12px;border:none;border-radius:8px;background:#06b6d4;color:#022;cursor:pointer;font-weight:600}
-  </style>
 </head>
 <body>
-  <div class="box">
-    <h2>Create Account</h2>
-    <label>Username</label>
-    <input id="username" type="text">
-    <label>Password</label>
-    <input id="password" type="password">
-    <div class="redact">
-      <input id="redact" type="checkbox">
-      <label for="redact">Enable Redaction (use rat#name)</label>
-    </div>
-    <button onclick="signup()">Sign Up</button>
-  </div>
+  <h2>Sign Up</h2>
+  <input id="username" placeholder="Username"><br>
+  <select id="role">
+    <option value="member">Member</option>
+    <option value="owner">Owner</option>
+  </select><br>
+  <button id="signup">Sign Up</button>
+
   <script>
-    function signup(){
-      let username=document.getElementById('username').value.trim()
-      let password=document.getElementById('password').value.trim()
-      const redact=document.getElementById('redact').checked
-      if(redact||!username) username='rat#'+Math.floor(Math.random()*9999)
-      if(!password){alert('Password required');return}
-      const user={username,password}
-      localStorage.setItem('tp_user',JSON.stringify(user))
-      location.href='chat.html'
-    }
+    document.getElementById("signup").onclick = () => {
+      const name = document.getElementById("username").value.trim();
+      const role = document.getElementById("role").value;
+      const user = { username: name || "rat#" + Math.floor(Math.random()*10000), role };
+      localStorage.setItem("tp_user", JSON.stringify(user));
+      window.location = "chat.html";
+    };
   </script>
 </body>
 </html>

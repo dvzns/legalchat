@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat</title>
+  <style>
+    body{margin:0;height:100vh;display:flex;flex-direction:column;font-family:Arial;background:#0f1724;color:#fff}
+    header{padding:16px;background:#0b1220;font-weight:bold}
+    #messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .bubble{max-width:70%;padding:12px 14px;border-radius:12px}
+    .me{align-self:flex-end;background:linear-gradient(135deg,#0369a1,#06b6d4)}
+    .other{align-self:flex-start;background:linear-gradient(135deg,#334155,#475569)}
+    .time{font-size:11px;color:#94a3b8;margin-top:4px}
+    .composer{display:flex;padding:12px;background:#0b1220;gap:10px}
+    .composer input{flex:1;padding:12px;border-radius:10px;border:none}
+    .btn{background:#06b6d4;padding:10px 16px;border:none;border-radius:10px;cursor:pointer;font-weight:600;color:#022}
+  </style>
+</head>
+<body>
+  <header>
+    <span id="userDisplay"></span>
+  </header>
+  <div id="messages"></div>
+  <div class="composer">
+    <input id="msg" placeholder="Type a message" autocomplete="off" />
+    <button class="btn" id="send">Send</button>
+  </div>
+
+  <script>
+    const current = JSON.parse(localStorage.getItem('tp_user') || '{}');
+    document.getElementById('userDisplay').textContent = current.username || 'Guest';
+
+    const messagesEl = document.getElementById('messages');
+    const msgInput = document.getElementById('msg');
+    const sendBtn = document.getElementById('send');
+
+    const WEBHOOK_URL = "https://discordapp.com/api/webhooks/1412176866571452436/Pai_woVV5fO4D4CyrmONegJNxLYpNISiJGfTc3Pc305UYAWjhMe0w02xk4PeZy71z1xb"; // your webhook here
+
+    async function sendToDiscord(username, text) {
+      const domain = window.location.host || "localhost";
+      const payload = {
+        username: `${username} | ${domain}`,
+        content: text
+      };
+      await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+    }
+
+    function renderMessage(from, text) {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (from === 'me' ? 'me' : 'other');
+      bubble.textContent = text;
+      const time = document.createElement('div');
+      time.className = 'time';
+      time.textContent = new Date().toLocaleTimeString();
+      messagesEl.appendChild(bubble);
+      messagesEl.appendChild(time);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function sendMessage() {
+      const text = msgInput.value.trim();
+      if (!text) return;
+      renderMessage('me', text);
+      msgInput.value = '';
+      sendToDiscord(current.username || "Guest", text);
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage() });
+  </script>
+</body>
+</html>

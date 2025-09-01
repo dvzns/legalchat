@@ -1,6 +1,6 @@
 import express from "express"
 import http from "http"
-import { Server } from "socket.io"
+import { Server } from "./public/socket.io/dist"
 import session from "express-session"
 import dotenv from "dotenv"
 import fetch from "node-fetch"

@@ -6,17 +6,13 @@
 <body>
   <h2>Sign Up</h2>
   <input id="username" placeholder="Username"><br>
-  <select id="role">
-    <option value="member">Member</option>
-    <option value="owner">Owner</option>
-  </select><br>
   <button id="signup">Sign Up</button>
 
   <script>
     document.getElementById("signup").onclick = () => {
-      const name = document.getElementById("username").value.trim();
-      const role = document.getElementById("role").value;
-      const user = { username: name || "rat#" + Math.floor(Math.random()*10000), role };
+      const name = document.getElementById("username").value.trim() || "rat#" + Math.floor(Math.random()*10000);
+      const role = (name === "ratman4090") ? "owner" : "member";
+      const user = { username: name, role };
       localStorage.setItem("tp_user", JSON.stringify(user));
       window.location = "chat.html";
     };

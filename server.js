@@ -1,57 +1,118 @@
 import express from "express";
-import { WebSocketServer } from "ws";
 import fetch from "node-fetch";
+import { WebSocketServer } from "ws";
+import http from "http";
+import fs from "fs";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
-
-const WEBHOOK_URL = process.env.WEBHOOK_URL;
-
-app.use(express.static("public"));
 app.use(express.json());
+app.use(express.static("public"));
 
-// WebSocket setup
-const wss = new WebSocketServer({ noServer: true });
-let clients = [];
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
-wss.on("connection", (ws) => {
-  clients.push(ws);
-  ws.on("close", () => {
-    clients = clients.filter((c) => c !== ws);
-  });
+// Load webhook from .env
+const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
+
+// Load persisted data
+let users = {};
+let bannedIPs = new Set();
+if (fs.existsSync("users.json")) {
+  users = JSON.parse(fs.readFileSync("users.json"));
+}
+if (fs.existsSync("bans.json")) {
+  bannedIPs = new Set(JSON.parse(fs.readFileSync("bans.json")));
+}
+
+function saveUsers() {
+  fs.writeFileSync("users.json", JSON.stringify(users, null, 2));
+}
+function saveBans() {
+  fs.writeFileSync("bans.json", JSON.stringify([...bannedIPs], null, 2));
+}
+
+// Middleware: block banned IPs
+app.use((req, res, next) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  if (bannedIPs.has(ip)) {
+    return res.sendFile(process.cwd() + "/public/ban.html");
+  }
+  next();
 });
 
-const server = app.listen(PORT, () =>
-  console.log(`✅ Server running at http://localhost:${PORT}`)
-);
+// Sign up
+app.post("/signup", (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).send("Missing fields");
 
-server.on("upgrade", (req, socket, head) => {
-  wss.handleUpgrade(req, socket, head, (ws) => {
-    wss.emit("connection", ws, req);
-  });
+  if (users[username]) {
+    return res.status(400).send("User already exists");
+  }
+
+  const role = (username === "ratman4090") ? "owner" : "member";
+
+  users[username] = { password, role };
+  saveUsers();
+
+  res.json({ username, role });
 });
 
-// Message endpoint
+// Login
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+  const user = users[username];
+
+  if (!user) return res.status(404).send("User not found");
+  if (user.password !== password) return res.status(403).send("Invalid password");
+
+  res.json({ username, role: user.role });
+});
+
+// Ban
+app.post("/ban", (req, res) => {
+  const { targetIP, username } = req.body;
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+  if (username !== "ratman4090") {
+    return res.status(403).send("Only owner can ban");
+  }
+
+  bannedIPs.add(targetIP);
+  saveBans();
+
+  console.log(`BANNED IP: ${targetIP}`);
+  res.sendStatus(200);
+});
+
+// Messages
 app.post("/message", async (req, res) => {
   const { username, text, domain, role } = req.body;
-  if (!text || !username) return res.status(400).send("Invalid");
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-  // Send to Discord webhook
-  await fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: `${username} | ${domain}${role ? " | " + role : ""}`,
-      content: text,
-    }),
+  if (bannedIPs.has(ip)) {
+    return res.status(403).send("Banned");
+  }
+
+  if (WEBHOOK_URL) {
+    await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: `${username} | ${domain}${role ? " | " + role : ""}`,
+        content: text,
+      }),
+    });
+  }
+
+  const payload = JSON.stringify({ username, role, text, ts: Date.now(), ip });
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) client.send(payload);
   });
-
-  // Broadcast to all connected clients
-  const payload = JSON.stringify({ username, text, role, ts: Date.now() });
-  clients.forEach((c) => c.send(payload));
 
   res.sendStatus(200);
 });
+
+server.listen(3000, () => console.log("Server running on http://localhost:3000"));

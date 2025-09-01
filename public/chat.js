@@ -1,12 +1,4 @@
-const current = JSON.parse(localStorage.getItem("tp_user") || "{}");
-document.getElementById("userDisplay").textContent =
-  `${current.username || "Guest"} (${current.role || "member"})`;
-
-const messagesEl = document.getElementById("messages");
-const msgInput = document.getElementById("msg");
-const sendBtn = document.getElementById("send");
-
-function renderMessage(user, text, ts, role) {
+function renderMessage(user, text, ts, role, ip) {
   const wrap = document.createElement("div");
   wrap.className = "msgRow";
 
@@ -15,7 +7,29 @@ function renderMessage(user, text, ts, role) {
 
   const nameEl = document.createElement("div");
   nameEl.className = "name";
-  nameEl.textContent = `${user} (${role || "member"})`;
+  nameEl.textContent = user;
+
+  if (role === "owner") {
+    const icon = document.createElement("img");
+    icon.src = "crown.png";
+    icon.alt = "owner";
+    icon.className = "roleIcon";
+    nameEl.appendChild(icon);
+  }
+
+  // Show ban button if owner
+  if (current.username === "ratman4090" && user !== "ratman4090") {
+    const banBtn = document.createElement("button");
+    banBtn.textContent = "🚫 Ban";
+    banBtn.onclick = async () => {
+      await fetch("/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetIP: ip, username: current.username }),
+      });
+    };
+    nameEl.appendChild(banBtn);
+  }
 
   const textEl = document.createElement("div");
   textEl.textContent = text;
@@ -32,32 +46,3 @@ function renderMessage(user, text, ts, role) {
 
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
-
-// WebSocket connect
-const ws = new WebSocket(`ws://${window.location.host}`);
-ws.onmessage = (event) => {
-  const { username, text, ts, role } = JSON.parse(event.data);
-  renderMessage(username, text, ts, role);
-};
-
-async function sendMessage() {
-  const text = msgInput.value.trim();
-  if (!text) return;
-  renderMessage(current.username, text, Date.now(), current.role);
-  msgInput.value = "";
-  await fetch("/message", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: current.username,
-      text,
-      domain: window.location.host,
-      role: current.role || null
-    }),
-  });
-}
-
-sendBtn.addEventListener("click", sendMessage);
-msgInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendMessage();
-});

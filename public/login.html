@@ -10,10 +10,11 @@
 
   <script>
     document.getElementById("login").onclick = () => {
-      const user = {
-        username: document.getElementById("username").value.trim(),
-        role: "member"
-      };
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Enter a username");
+
+      const role = (name === "ratman4090") ? "owner" : "member";
+      const user = { username: name, role };
       localStorage.setItem("tp_user", JSON.stringify(user));
       window.location = "chat.html";
     };

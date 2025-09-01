@@ -1,89 +1,97 @@
 body {
-  font-family: sans-serif;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.form-container, .chat-container, .ban-box {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  width: 350px;
+  text-align: center;
+}
+
+form {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  margin: 0;
+  gap: 12px;
 }
 
-header {
-  background: #333;
-  color: white;
+input {
   padding: 10px;
-}
-
-#messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  background: #f4f4f4;
-}
-
-.msgRow {
-  margin-bottom: 12px;
-}
-
-.bubble {
-  padding: 8px 12px;
-  border-radius: 12px;
-  max-width: 70%;
-}
-
-.bubble.me {
-  background: #007bff;
-  color: white;
-  margin-left: auto;
-}
-
-.bubble.other {
-  background: #ddd;
-  color: black;
-  margin-right: auto;
-}
-
-.name {
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.time {
-  font-size: 0.7em;
-  color: gray;
-  text-align: right;
-}
-
-.composer {
-  display: flex;
-  padding: 10px;
-  background: white;
-  border-top: 1px solid #ccc;
-}
-
-.composer input {
-  flex: 1;
-  padding: 8px;
   border: 1px solid #ccc;
   border-radius: 8px;
 }
 
-.composer button {
-  margin-left: 8px;
-  padding: 8px 16px;
-  border: none;
+button {
+  padding: 10px;
   background: #007bff;
   color: white;
+  border: none;
   border-radius: 8px;
+  cursor: pointer;
 }
 
-.name {
-  font-weight: bold;
-  margin-bottom: 4px;
+button:hover {
+  background: #0056b3;
+}
+
+.chat-container {
+  width: 500px;
+  height: 600px;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
 }
 
-.roleIcon {
-  width: 18px;
-  height: 18px;
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin: 15px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.message {
+  margin: 8px 0;
+  padding: 6px 10px;
+  background: #e9ecef;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.message.owner {
+  background: #ffe0e0;
+  font-weight: bold;
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input input {
+  flex: 1;
+}
+
+.banned {
+  background: #ffdddd;
+}
+
+.ban-box {
+  width: 400px;
+  border: 2px solid red;
 }

@@ -1,23 +1,41 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Login</title>
+  <link rel="stylesheet" href="chat.css">
 </head>
 <body>
-  <h2>Login</h2>
-  <input id="username" placeholder="Username"><br>
-  <button id="login">Login</button>
+  <div class="form-container">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+    <p>Don’t have an account? <a href="signup.html">Sign up</a></p>
+  </div>
 
   <script>
-    document.getElementById("login").onclick = () => {
-      const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Enter a username");
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-      const role = (name === "ratman4090") ? "owner" : "member";
-      const user = { username: name, role };
-      localStorage.setItem("tp_user", JSON.stringify(user));
-      window.location = "chat.html";
-    };
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem("user", JSON.stringify(data));
+        window.location.href = "chat.html";
+      } else {
+        alert(await res.text());
+      }
+    });
   </script>
 </body>
 </html>

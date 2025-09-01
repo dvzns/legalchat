@@ -1,16 +1,23 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Chat</title>
   <link rel="stylesheet" href="chat.css">
 </head>
 <body>
-  <header><span id="userDisplay"></span></header>
-  <div id="messages"></div>
-  <div class="composer">
-    <input id="msg" placeholder="Type a message">
-    <button id="send">Send</button>
+  <div class="chat-container">
+    <div class="chat-header">
+      <h1>Global Chat</h1>
+      <button id="logoutBtn">Logout</button>
+    </div>
+    <div id="messages" class="chat-messages"></div>
+    <form id="chatForm" class="chat-input">
+      <input type="text" id="message" placeholder="Type a message..." required>
+      <button type="submit">Send</button>
+    </form>
   </div>
+
   <script src="chat.js"></script>
 </body>
 </html>

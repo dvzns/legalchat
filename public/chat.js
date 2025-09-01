@@ -1,48 +1,50 @@
-function renderMessage(user, text, ts, role, ip) {
-  const wrap = document.createElement("div");
-  wrap.className = "msgRow";
-
-  const bubble = document.createElement("div");
-  bubble.className = "bubble " + (user === current.username ? "me" : "other");
-
-  const nameEl = document.createElement("div");
-  nameEl.className = "name";
-  nameEl.textContent = user;
-
-  if (role === "owner") {
-    const icon = document.createElement("img");
-    icon.src = "crown.png";
-    icon.alt = "owner";
-    icon.className = "roleIcon";
-    nameEl.appendChild(icon);
-  }
-
-  // Show ban button if owner
-  if (current.username === "ratman4090" && user !== "ratman4090") {
-    const banBtn = document.createElement("button");
-    banBtn.textContent = "🚫 Ban";
-    banBtn.onclick = async () => {
-      await fetch("/ban", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetIP: ip, username: current.username }),
-      });
-    };
-    nameEl.appendChild(banBtn);
-  }
-
-  const textEl = document.createElement("div");
-  textEl.textContent = text;
-
-  const time = document.createElement("div");
-  time.className = "time";
-  time.textContent = new Date(ts).toLocaleTimeString();
-
-  bubble.appendChild(nameEl);
-  bubble.appendChild(textEl);
-  bubble.appendChild(time);
-  wrap.appendChild(bubble);
-  messagesEl.appendChild(wrap);
-
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+const user = JSON.parse(localStorage.getItem("user"));
+if (!user) {
+  window.location.href = "login.html";
 }
+
+const messagesDiv = document.getElementById("messages");
+const form = document.getElementById("chatForm");
+const input = document.getElementById("message");
+const logoutBtn = document.getElementById("logoutBtn");
+
+// WebSocket connect
+const ws = new WebSocket(`ws://${window.location.host}`);
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  addMessage(msg.username, msg.role, msg.text);
+};
+
+function addMessage(username, role, text) {
+  const div = document.createElement("div");
+  div.classList.add("message");
+  if (role === "owner") div.classList.add("owner");
+  div.textContent = `${username}${role === "owner" ? " | owner" : ""}: ${text}`;
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+
+  await fetch("/message", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: user.username,
+      role: user.role,
+      domain: window.location.hostname,
+      text,
+    }),
+  });
+
+  input.value = "";
+});
+
+logoutBtn.addEventListener("click", () => {
+  localStorage.removeItem("user");
+  window.location.href = "login.html";
+});

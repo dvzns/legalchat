@@ -14,12 +14,10 @@ app.use(express.static("public"));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Load webhook from .env
-const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
-
-// Load persisted data
+// --- Storage ---
 let users = {};
 let bannedIPs = new Set();
+
 if (fs.existsSync("users.json")) {
   users = JSON.parse(fs.readFileSync("users.json"));
 }
@@ -34,7 +32,10 @@ function saveBans() {
   fs.writeFileSync("bans.json", JSON.stringify([...bannedIPs], null, 2));
 }
 
-// Middleware: block banned IPs
+// --- Constants ---
+const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
+
+// --- Middleware: Ban check ---
 app.use((req, res, next) => {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   if (bannedIPs.has(ip)) {
@@ -43,7 +44,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Sign up
+// --- Signup ---
 app.post("/signup", (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).send("Missing fields");
@@ -52,7 +53,7 @@ app.post("/signup", (req, res) => {
     return res.status(400).send("User already exists");
   }
 
-  const role = (username === "ratman4090") ? "owner" : "member";
+  const role = username === "ratman4090" ? "owner" : "member";
 
   users[username] = { password, role };
   saveUsers();
@@ -60,7 +61,7 @@ app.post("/signup", (req, res) => {
   res.json({ username, role });
 });
 
-// Login
+// --- Login ---
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
   const user = users[username];
@@ -71,11 +72,9 @@ app.post("/login", (req, res) => {
   res.json({ username, role: user.role });
 });
 
-// Ban
+// --- Ban ---
 app.post("/ban", (req, res) => {
   const { targetIP, username } = req.body;
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
   if (username !== "ratman4090") {
     return res.status(403).send("Only owner can ban");
   }
@@ -83,11 +82,10 @@ app.post("/ban", (req, res) => {
   bannedIPs.add(targetIP);
   saveBans();
 
-  console.log(`BANNED IP: ${targetIP}`);
   res.sendStatus(200);
 });
 
-// Messages
+// --- Messages ---
 app.post("/message", async (req, res) => {
   const { username, text, domain, role } = req.body;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -96,6 +94,7 @@ app.post("/message", async (req, res) => {
     return res.status(403).send("Banned");
   }
 
+  // send to Discord
   if (WEBHOOK_URL) {
     await fetch(WEBHOOK_URL, {
       method: "POST",
@@ -107,7 +106,8 @@ app.post("/message", async (req, res) => {
     });
   }
 
-  const payload = JSON.stringify({ username, role, text, ts: Date.now(), ip });
+  // broadcast to clients
+  const payload = JSON.stringify({ username, role, text, ts: Date.now() });
   wss.clients.forEach((client) => {
     if (client.readyState === 1) client.send(payload);
   });
@@ -115,4 +115,5 @@ app.post("/message", async (req, res) => {
   res.sendStatus(200);
 });
 
+// --- Start ---
 server.listen(3000, () => console.log("Server running on http://localhost:3000"));
